@@ -4,15 +4,18 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <meta property="og:title" content="Mess With My Spotify" /> 
-    <meta property="og:description" content="modify my spotify stuff I guess" /> 
+
+    <meta property="og:title" content="Mess With My Spotify" />
+    <meta property="og:description" content="modify my spotify stuff I guess" />
     <meta property="og:image" content="https://tdarth.github.io/MessWithMySpotify/logo.png" />
     <meta property="og:url" content="https://tdarth.github.io/MessWithMySpotify/" />
     <meta property="og:type" content="website" />
 
     <title>Spotify Song Info</title>
     <link rel="icon" type="image/png" href="logo.png">
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+
     <style>
         body {
             margin: 0;
@@ -86,11 +89,22 @@
             color: white;
             font-size: 1rem;
             cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
 
         button:hover {
             background: #1ed760;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
         }
+
+        button i {
+            display: inline-block;
+            width: 1.5em;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
 
         .progress-tooltip {
             position: absolute;
@@ -135,6 +149,27 @@
             border-radius: 2px;
             transition: height 0.2s ease;
         }
+
+        @keyframes flashPlayPause {
+            0% {
+                content: '\f04b';
+                /* play icon */
+            }
+
+            50% {
+                content: '\f04c';
+                /* pause icon */
+            }
+
+            100% {
+                content: '\f04b';
+                /* play icon */
+            }
+        }
+
+        #toggle-button.playing {
+            animation: flashPlayPause 1s infinite;
+        }
     </style>
 </head>
 
@@ -150,7 +185,17 @@
             <div class="progress-container" id="progress-container">
                 <div class="progress-bar" id="progress-bar"></div>
             </div>
-            <button onclick="togglePlayback()" id="toggle-button">Toggle Playback</button>
+            <div class="button-group">
+                <button onclick="navigatePlayer('previous')">
+                    <i class="fas fa-backward"></i>
+                </button>
+                <button onclick="togglePlayback()" id="toggle-button">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button onclick="navigatePlayer('next')">
+                    <i class="fas fa-forward"></i>
+                </button>
+            </div>
         </div>
 
         <div class="visualizer" id="visualizer">
@@ -264,6 +309,13 @@
                     isPlaying = !isPlaying;
                     document.getElementById("song-status").textContent = isPlaying ? "Now Playing" : "Paused";
                     updateVisualizerState();
+
+                    const toggleButton = document.getElementById("toggle-button");
+                    if (isPlaying) {
+                        toggleButton.classList.add("playing");
+                    } else {
+                        toggleButton.classList.remove("playing");
+                    }
                 } else {
                     const err = await res.json();
                     console.error("Error toggling playback:", err);
@@ -272,6 +324,48 @@
                 console.error("Playback toggle error:", err);
             }
         }
+
+        async function navigatePlayer(direction) {
+            let type = "";
+            if (direction === 'previous') type = "previous";
+            else if (direction === 'next') type = "next";
+
+            try {
+                const res = await fetch("https://messwithmyspotify-api.onrender.com/navigateplayer", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", type }
+                });
+
+                if (res.ok) {
+                    fetchSongInfo();
+                } else {
+                    const err = await res.json();
+                    console.error("Error during Navigation:", err);
+                }
+            } catch (err) {
+                console.error("Navigation error:", err);
+            }
+        }
+
+        let lastPlayedState = isPlaying;
+
+        setInterval(() => {
+            if (isPlaying !== lastPlayedState) {
+                lastPlayedState = isPlaying;
+
+                const toggleButton = document.getElementById("toggle-button");
+                const icon = toggleButton.querySelector('i');
+
+                if (isPlaying) {
+                    icon.classList.remove("fa-play");
+                    icon.classList.add("fa-pause");
+                } else {
+                    icon.classList.remove("fa-pause");
+                    icon.classList.add("fa-play");
+                }
+            }
+        }, 100);
+
 
         fetchSongInfo();
         setInterval(fetchSongInfo, syncInterval);
