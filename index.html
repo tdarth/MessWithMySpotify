@@ -10,31 +10,54 @@
       background-color: #121212;
       color: #fff;
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      padding: 2rem;
+      height: 100vh;
+      margin: 0;
     }
     .card {
       background-color: #1e1e1e;
-      padding: 2rem;
+      padding: 1.5rem;
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-      text-align: center;
-      width: 300px;
+      display: flex;
+      flex-direction: row;
+      gap: 1.5rem;
+      align-items: center;
+      max-width: 800px;
     }
     img {
       border-radius: 12px;
-      max-width: 100%;
+      width: 180px;
+      height: 180px;
+      object-fit: cover;
+    }
+    .info {
+      flex: 1;
     }
     h2 {
-      margin: 1rem 0 0.5rem;
+      margin: 0 0 0.5rem;
     }
     p {
-      margin: 0.5rem 0;
+      margin: 0.2rem 0;
+    }
+    .progress-container {
+      margin-top: 0.8rem;
+      background-color: #333;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 10px;
+      width: 100%;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: #1db954;
+      width: 0%;
+      transition: width 0.5s;
     }
     button {
-      margin-top: 1.5rem;
-      padding: 0.6rem 1.2rem;
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
       border: none;
       background-color: #1db954;
       color: white;
@@ -50,16 +73,24 @@
 <body>
   <div class="card" id="song-card">
     <img id="song-image" src="" alt="Song Cover" />
-    <h2 id="song-name">Loading...</h2>
-    <p id="song-artists"></p>
-    <p id="song-status"></p>
-    <p id="song-progress"></p>
-    <p id="volume"></p>
-    <button onclick="togglePlayback()" id="toggle-button">Toggle Playback</button>
+    <div class="info">
+      <h2 id="song-name">Loading...</h2>
+      <p id="song-artists"></p>
+      <p id="song-status"></p>
+      <p id="volume"></p>
+      <div class="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <button onclick="togglePlayback()" id="toggle-button">Toggle Playback</button>
+    </div>
   </div>
 
   <script>
     let isPlaying = false;
+    let progressMs = 0;
+    let durationMs = 0;
+    let syncInterval = 10000;
+    let progressTimer;
 
     async function fetchSongInfo() {
       try {
@@ -69,21 +100,34 @@
         document.getElementById("song-name").textContent = data.name;
         document.getElementById("song-artists").textContent = `By: ${data.artists.join(', ')}`;
         document.getElementById("song-status").textContent = data.is_playing ? "Now Playing" : "Paused";
-        document.getElementById("song-progress").textContent =
-          `Progress: ${formatTime(data.progress_ms)} / ${formatTime(data.duration_ms)}`;
         document.getElementById("volume").textContent = `Volume: ${data.volume_percent}%`;
         document.getElementById("song-image").src = data.song_image;
 
         isPlaying = data.is_playing;
+        progressMs = data.progress_ms;
+        durationMs = data.duration_ms;
+
+        updateProgressBar();
+        restartProgressTimer();
       } catch (err) {
         console.error("Failed to fetch song info:", err);
       }
     }
 
-    function formatTime(ms) {
-      const minutes = Math.floor(ms / 60000);
-      const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
-      return `${minutes}:${seconds}`;
+    function updateProgressBar() {
+      const percent = durationMs > 0 ? (progressMs / durationMs) * 100 : 0;
+      document.getElementById("progress-bar").style.width = `${percent}%`;
+    }
+
+    function restartProgressTimer() {
+      clearInterval(progressTimer);
+      progressTimer = setInterval(() => {
+        if (isPlaying) {
+          progressMs += 1000;
+          if (progressMs > durationMs) progressMs = durationMs;
+          updateProgressBar();
+        }
+      }, 1000);
     }
 
     async function togglePlayback() {
@@ -100,7 +144,7 @@
 
         if (res.ok) {
           isPlaying = !isPlaying;
-          fetchSongInfo();
+          document.getElementById("song-status").textContent = isPlaying ? "Now Playing" : "Paused";
         } else {
           const err = await res.json();
           console.error("Error toggling playback:", err);
@@ -110,8 +154,9 @@
       }
     }
 
+    // Initial fetch + sync every 10 seconds
     fetchSongInfo();
-    setInterval(fetchSongInfo, 10000);
+    setInterval(fetchSongInfo, syncInterval);
   </script>
 </body>
 </html>
