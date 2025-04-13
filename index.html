@@ -337,7 +337,9 @@
                 });
 
                 if (res.ok) {
-                    fetchSongInfo();
+                    setTimeout(() => {
+                        fetchSongInfo();
+                    }, 300);
                 } else {
                     const err = await res.json();
                     console.error("Error during Navigation:", err);
