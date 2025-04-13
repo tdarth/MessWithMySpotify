@@ -34,6 +34,7 @@
     }
     .info {
       flex: 1;
+      position: relative;
     }
     h2 {
       margin: 0 0 0.5rem;
@@ -48,12 +49,26 @@
       overflow: hidden;
       height: 10px;
       width: 100%;
+      position: relative;
+      cursor: pointer;
     }
     .progress-bar {
       height: 100%;
       background-color: #1db954;
       width: 0%;
-      transition: width 0.5s;
+    }
+    .tooltip {
+      position: absolute;
+      background-color: #000;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      transform: translateX(-50%);
+      top: -28px;
     }
     button {
       margin-top: 1rem;
@@ -78,9 +93,12 @@
       <p id="song-artists"></p>
       <p id="song-status"></p>
       <p id="volume"></p>
-      <div class="progress-container">
+
+      <div class="progress-container" id="progress-container">
         <div class="progress-bar" id="progress-bar"></div>
+        <div class="tooltip" id="tooltip">0:00 / 0:00</div>
       </div>
+
       <button onclick="togglePlayback()" id="toggle-button">Toggle Playback</button>
     </div>
   </div>
@@ -89,8 +107,16 @@
     let isPlaying = false;
     let progressMs = 0;
     let durationMs = 0;
-    let syncInterval = 10000;
-    let progressTimer;
+    let lastSyncTime = Date.now();
+    let tooltip = document.getElementById("tooltip");
+    let container = document.getElementById("progress-container");
+    const bar = document.getElementById("progress-bar");
+
+    function formatTime(ms) {
+      const minutes = Math.floor(ms / 60000);
+      const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    }
 
     async function fetchSongInfo() {
       try {
@@ -98,7 +124,7 @@
         const data = await res.json();
 
         document.getElementById("song-name").textContent = data.name;
-        document.getElementById("song-artists").textContent = `By: ${data.artists.join(', ')}`;
+        document.getElementById("song-artists").textContent = `${data.artists.join(', ')}`;
         document.getElementById("song-status").textContent = data.is_playing ? "Now Playing" : "Paused";
         document.getElementById("volume").textContent = `Volume: ${data.volume_percent}%`;
         document.getElementById("song-image").src = data.song_image;
@@ -106,29 +132,34 @@
         isPlaying = data.is_playing;
         progressMs = data.progress_ms;
         durationMs = data.duration_ms;
-
-        updateProgressBar();
-        restartProgressTimer();
+        lastSyncTime = Date.now();
       } catch (err) {
         console.error("Failed to fetch song info:", err);
       }
     }
 
-    function updateProgressBar() {
-      const percent = durationMs > 0 ? (progressMs / durationMs) * 100 : 0;
-      document.getElementById("progress-bar").style.width = `${percent}%`;
+    function animateProgress() {
+      requestAnimationFrame(animateProgress);
+      if (isPlaying && durationMs > 0) {
+        const elapsed = Date.now() - lastSyncTime;
+        const currentProgress = Math.min(progressMs + elapsed, durationMs);
+        const percent = (currentProgress / durationMs) * 100;
+        bar.style.width = `${percent}%`;
+      }
     }
 
-    function restartProgressTimer() {
-      clearInterval(progressTimer);
-      progressTimer = setInterval(() => {
-        if (isPlaying) {
-          progressMs += 1000;
-          if (progressMs > durationMs) progressMs = durationMs;
-          updateProgressBar();
-        }
-      }, 1000);
-    }
+    container.addEventListener("mousemove", (e) => {
+      const rect = container.getBoundingClientRect();
+      const percent = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+      const hoverTime = Math.floor(percent * durationMs);
+      tooltip.textContent = `${formatTime(hoverTime)} / ${formatTime(durationMs)}`;
+      tooltip.style.left = `${e.clientX - rect.left}px`;
+      tooltip.style.opacity = 1;
+    });
+
+    container.addEventListener("mouseleave", () => {
+      tooltip.style.opacity = 0;
+    });
 
     async function togglePlayback() {
       const type = isPlaying ? "pause" : "play";
@@ -144,6 +175,7 @@
 
         if (res.ok) {
           isPlaying = !isPlaying;
+          lastSyncTime = Date.now();
           document.getElementById("song-status").textContent = isPlaying ? "Now Playing" : "Paused";
         } else {
           const err = await res.json();
@@ -154,9 +186,9 @@
       }
     }
 
-    // Initial fetch + sync every 10 seconds
     fetchSongInfo();
-    setInterval(fetchSongInfo, syncInterval);
+    setInterval(fetchSongInfo, 10000);
+    animateProgress();
   </script>
 </body>
 </html>
