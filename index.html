@@ -18,6 +18,7 @@
         }
 
         .card {
+            position: relative;
             display: flex;
             gap: 2rem;
             align-items: center;
@@ -39,6 +40,7 @@
 
         .info {
             flex: 1;
+            position: relative;
         }
 
         h2 {
@@ -107,9 +109,23 @@
             border-color: rgba(0, 0, 0, 0.85) transparent transparent transparent;
         }
 
+        .visualizer {
+            position: absolute;
+            top: -30px;
+            right: 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 30px;
+            width: 40px;
+        }
 
-        .info {
-            position: relative;
+        .bar {
+            flex: 1;
+            background: #1db954;
+            height: 5px;
+            border-radius: 2px;
+            transition: height 0.2s ease;
         }
     </style>
 </head>
@@ -118,7 +134,7 @@
     <div class="card">
         <img id="song-image" src="" alt="Song Cover" title="Song Cover" />
         <div class="info">
-            <div class="progress-tooltip" id="progress-tooltip">0:00 / 0:00</div> <!-- move it here -->
+            <div class="progress-tooltip" id="progress-tooltip">0:00 / 0:00</div>
             <h2 id="song-name">Loading...</h2>
             <p id="song-artists"></p>
             <p id="song-status"></p>
@@ -129,10 +145,19 @@
             <button onclick="togglePlayback()" id="toggle-button">Toggle Playback</button>
         </div>
 
+        <div class="visualizer" id="visualizer">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
     </div>
 
     <script>
-        let isPlaying = false, progressMs = 0, durationMs = 0, progressTimer;
+        let isPlaying = false, progressMs = 0, durationMs = 0, progressTimer, visualizerTimer;
         const syncInterval = 10000;
 
         async function fetchSongInfo() {
@@ -156,6 +181,7 @@
 
                 updateProgressBar();
                 restartProgressTimer();
+                updateVisualizerState();
             } catch (err) {
                 console.error("Failed to fetch song info:", err);
             }
@@ -176,21 +202,24 @@
                 }
             }, 1000);
         }
+
+        function updateVisualizerState() {
+            clearInterval(visualizerTimer);
+            const bars = document.querySelectorAll('#visualizer .bar');
+            if (isPlaying) {
+                visualizerTimer = setInterval(() => {
+                    bars.forEach(bar => {
+                        const randomHeight = Math.random() * 30 + 5;
+                        bar.style.height = `${randomHeight}px`;
+                    });
+                }, 200);
+            } else {
+                bars.forEach(bar => bar.style.height = '0px');
+            }
+        }
+
         const progressContainer = document.getElementById('progress-container');
         const tooltip = document.getElementById('progress-tooltip');
-
-        progressContainer.addEventListener('mousemove', (e) => {
-            const rect = progressContainer.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const percent = Math.min(Math.max(x / rect.width, 0), 1);
-            const hoverTime = durationMs * percent;
-
-            tooltip.style.top = `${progressContainer.offsetTop - 30}px`;  // Lift it 30px above the bar
-            tooltip.style.left = `${x}px`;
-            tooltip.style.opacity = 1;
-            tooltip.textContent = `${formatTime(hoverTime)} / ${formatTime(durationMs)}`;
-
-        });
 
         progressContainer.addEventListener('mousemove', (e) => {
             const rect = progressContainer.getBoundingClientRect();
@@ -208,14 +237,12 @@
             tooltip.style.opacity = 0;
         });
 
-
         function formatTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
             const minutes = Math.floor(totalSeconds / 60);
             const seconds = totalSeconds % 60;
             return `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
-
 
         async function togglePlayback() {
             const type = isPlaying ? "pause" : "play";
@@ -228,6 +255,7 @@
                 if (res.ok) {
                     isPlaying = !isPlaying;
                     document.getElementById("song-status").textContent = isPlaying ? "Now Playing" : "Paused";
+                    updateVisualizerState();
                 } else {
                     const err = await res.json();
                     console.error("Error toggling playback:", err);
