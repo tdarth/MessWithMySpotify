@@ -13,92 +13,105 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      margin: 0;
     }
-    .card {
+
+    .container {
+      display: flex;
       background-color: #1e1e1e;
-      padding: 1.5rem;
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-      display: flex;
-      flex-direction: row;
-      gap: 1.5rem;
-      align-items: center;
-      max-width: 800px;
+      overflow: hidden;
+      width: 700px;
     }
-    img {
-      border-radius: 12px;
-      width: 180px;
-      height: 180px;
+
+    .song-image {
+      width: 250px;
+      height: 250px;
       object-fit: cover;
     }
+
     .info {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
       flex: 1;
-      position: relative;
     }
-    h2 {
-      margin: 0 0 0.5rem;
+
+    .info h2 {
+      margin: 0;
+      font-size: 1.5rem;
     }
-    p {
-      margin: 0.2rem 0;
+
+    .info p {
+      margin: 0.5rem 0;
     }
-    .progress-container {
-      margin-top: 0.8rem;
-      background-color: #333;
-      border-radius: 6px;
-      overflow: hidden;
+
+    .progress-wrapper {
+      margin-top: 1rem;
       height: 10px;
-      width: 100%;
+      background-color: #444;
+      border-radius: 5px;
       position: relative;
-      cursor: pointer;
     }
+
     .progress-bar {
       height: 100%;
       background-color: #1db954;
+      border-radius: 5px;
       width: 0%;
       transition: width 0.1s linear;
     }
+
     .tooltip {
       position: absolute;
-      background-color: #000;
-      color: #fff;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #000;
       padding: 4px 8px;
-      border-radius: 6px;
+      border-radius: 4px;
       font-size: 0.75rem;
       white-space: nowrap;
-      pointer-events: none;
+      margin-bottom: 6px;
       opacity: 0;
-      transform: translate(-50%, -8px);
-      transition: opacity 0.15s ease;
-      z-index: 10;
+      pointer-events: none;
+      transition: opacity 0.2s;
     }
+
+    .progress-wrapper:hover .tooltip {
+      opacity: 1;
+    }
+
     button {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
+      margin-top: 1.5rem;
+      padding: 0.6rem 1.2rem;
       border: none;
       background-color: #1db954;
       color: white;
       font-size: 1rem;
       border-radius: 8px;
       cursor: pointer;
+      width: fit-content;
     }
+
     button:hover {
       background-color: #1ed760;
     }
   </style>
 </head>
 <body>
-  <div class="card" id="song-card">
-    <img id="song-image" src="" alt="Song Cover" />
+  <div class="container">
+    <img class="song-image" id="song-image" src="" alt="Song Cover" />
     <div class="info">
       <h2 id="song-name">Loading...</h2>
       <p id="song-artists"></p>
       <p id="song-status"></p>
       <p id="volume"></p>
 
-      <div class="progress-container" id="progress-container">
-        <div class="progress-bar" id="progress-bar"></div>
+      <div class="progress-wrapper" id="progress-wrapper">
         <div class="tooltip" id="tooltip">0:00 / 0:00</div>
+        <div class="progress-bar" id="progress-bar"></div>
       </div>
 
       <button onclick="togglePlayback()" id="toggle-button">Toggle Playback</button>
@@ -107,18 +120,14 @@
 
   <script>
     let isPlaying = false;
-    let progressMs = 0;
     let durationMs = 0;
-    let lastSyncTime = Date.now();
+    let progressMs = 0;
+    let lastFetchTimestamp = 0;
+    let animationFrameId = null;
+
     const progressBar = document.getElementById("progress-bar");
     const tooltip = document.getElementById("tooltip");
-    const container = document.getElementById("progress-container");
-
-    function formatTime(ms) {
-      const minutes = Math.floor(ms / 60000);
-      const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
-      return `${minutes}:${seconds}`;
-    }
+    const progressWrapper = document.getElementById("progress-wrapper");
 
     async function fetchSongInfo() {
       try {
@@ -132,46 +141,42 @@
         document.getElementById("song-image").src = data.song_image;
 
         isPlaying = data.is_playing;
-        progressMs = data.progress_ms;
         durationMs = data.duration_ms;
-        lastSyncTime = Date.now();
+        progressMs = data.progress_ms;
+        lastFetchTimestamp = Date.now();
+
+        startSmoothProgress();
       } catch (err) {
         console.error("Failed to fetch song info:", err);
       }
     }
 
-    function animateProgress() {
-      requestAnimationFrame(animateProgress);
-
-      if (!durationMs || durationMs === 0) return;
-
-      const now = Date.now();
-      const elapsed = now - lastSyncTime;
-
-      let currentProgress = progressMs;
-      if (isPlaying) {
-        currentProgress += elapsed;
-      }
-
-      currentProgress = Math.min(currentProgress, durationMs);
-      const percent = (currentProgress / durationMs) * 100;
-      progressBar.style.width = `${percent}%`;
+    function formatTime(ms) {
+      const minutes = Math.floor(ms / 60000);
+      const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+      return `${minutes}:${seconds}`;
     }
 
-    container.addEventListener("mousemove", (e) => {
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const percent = x / rect.width;
-      const hoverTime = Math.floor(percent * durationMs);
+    function startSmoothProgress() {
+      cancelAnimationFrame(animationFrameId);
 
-      tooltip.textContent = `${formatTime(hoverTime)} / ${formatTime(durationMs)}`;
-      tooltip.style.left = `${x}px`;
-      tooltip.style.opacity = 1;
-    });
+      function animate() {
+        const now = Date.now();
+        const elapsed = now - lastFetchTimestamp;
+        let currentProgress = progressMs + elapsed;
 
-    container.addEventListener("mouseleave", () => {
-      tooltip.style.opacity = 0;
-    });
+        if (!isPlaying || currentProgress > durationMs) {
+          currentProgress = Math.min(currentProgress, durationMs);
+        }
+
+        const percent = (currentProgress / durationMs) * 100;
+        progressBar.style.width = `${percent}%`;
+
+        animationFrameId = requestAnimationFrame(animate);
+      }
+
+      animate();
+    }
 
     async function togglePlayback() {
       const type = isPlaying ? "pause" : "play";
@@ -187,8 +192,7 @@
 
         if (res.ok) {
           isPlaying = !isPlaying;
-          lastSyncTime = Date.now();
-          document.getElementById("song-status").textContent = isPlaying ? "Now Playing" : "Paused";
+          lastFetchTimestamp = Date.now();
         } else {
           const err = await res.json();
           console.error("Error toggling playback:", err);
@@ -198,9 +202,19 @@
       }
     }
 
+    // Tooltip on hover
+    progressWrapper.addEventListener("mousemove", (e) => {
+      const rect = progressWrapper.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percent = x / rect.width;
+      const hoverMs = percent * durationMs;
+
+      tooltip.textContent = `${formatTime(hoverMs)} / ${formatTime(durationMs)}`;
+      tooltip.style.left = `${x}px`;
+    });
+
     fetchSongInfo();
     setInterval(fetchSongInfo, 10000);
-    animateProgress();
   </script>
 </body>
 </html>
