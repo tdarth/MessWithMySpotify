@@ -309,70 +309,31 @@
     <script>
         let isPlaying = false, progressMs = 0, durationMs = 0, progressTimer, visualizerTimer;
         const syncInterval = 10000;
-        let ws, wsActive = false;
-
-        function startWebSocket() {
-            ws = new WebSocket("wss://messwithmyspotify-api.onrender.com/socket.io/?EIO=4&transport=websocket");
-
-            ws.onopen = () => {
-                console.log("WebSocket connected");
-                wsActive = true;
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleSongData(data);
-            };
-
-            ws.onerror = (err) => {
-                console.error("WebSocket error:", err);
-                fallbackToPolling();
-            };
-
-            ws.onclose = () => {
-                console.warn("WebSocket closed, falling back to polling");
-                fallbackToPolling();
-            };
-        }
-
-        function fallbackToPolling() {
-            if (wsActive) {
-                wsActive = false;
-                clearInterval(progressTimer);
-                fetchSongInfo();
-                setInterval(fetchSongInfo, syncInterval);
-            }
-        }
-
-        function handleSongData(data) {
-            document.getElementById("song-name").textContent = data.name;
-            document.getElementById("song-artists").textContent = `${data.artists.join(', ')}`;
-            document.getElementById("song-status").textContent = data.is_playing ? "Now Playing" : "Paused";
-
-            document.getElementById("volume-slider").value = data.volume_percent;
-            updateSliderBackground(data.volume_percent);
-
-            const songImage = document.getElementById("song-image");
-            songImage.src = data.song_image;
-            songImage.alt = `${data.name}`;
-            songImage.title = `${data.name}`;
-
-            isPlaying = data.is_playing;
-            progressMs = data.progress_ms;
-            durationMs = data.duration_ms;
-
-            updateProgressBar();
-            restartProgressTimer();
-            updateVisualizerState();
-        }
 
         async function fetchSongInfo() {
-            if (wsActive) return;
-
             try {
                 const res = await fetch("https://messwithmyspotify-api.onrender.com/getsonginformation");
                 const data = await res.json();
-                handleSongData(data);
+
+                document.getElementById("song-name").textContent = data.name;
+                document.getElementById("song-artists").textContent = `${data.artists.join(', ')}`;
+                document.getElementById("song-status").textContent = data.is_playing ? "Now Playing" : "Paused";
+
+                document.getElementById("volume-slider").value = data.volume_percent;
+                updateSliderBackground(data.volume_percent);
+
+                const songImage = document.getElementById("song-image");
+                songImage.src = data.song_image;
+                songImage.alt = `${data.name}`;
+                songImage.title = `${data.name}`;
+
+                isPlaying = data.is_playing;
+                progressMs = data.progress_ms;
+                durationMs = data.duration_ms;
+
+                updateProgressBar();
+                restartProgressTimer();
+                updateVisualizerState();
             } catch (err) {
                 console.error("Failed to fetch song info:", err);
             }
@@ -528,6 +489,7 @@
             volumeTooltip.style.opacity = 0;
         });
 
+
         function updateSliderBackground(value) {
             const percent = (value / volumeSlider.max) * 100;
             volumeSlider.style.setProperty('--slider-fill', `${percent}%`);
@@ -542,7 +504,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const slider = document.getElementById('volume-slider');
-            updateSliderBackground(slider.value);
+            updateSliderVisual(slider);
         });
 
         async function sendVolume(volume) {
@@ -563,18 +525,9 @@
             }
         }
 
-        // Start with WebSocket
-        startWebSocket();
-
-        // Poll as a backup if WebSocket fails immediately
-        setTimeout(() => {
-            if (!wsActive) {
-                console.log("WebSocket did not connect, falling back to polling.");
-                fallbackToPolling();
-            }
-        }, 5000);
+        fetchSongInfo();
+        setInterval(fetchSongInfo, syncInterval);
     </script>
-
 </body>
 
 </html>
