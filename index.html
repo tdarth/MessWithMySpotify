@@ -312,7 +312,7 @@
         let ws, wsActive = false;
 
         function startWebSocket() {
-            ws = new WebSocket("ws://messwithmyspotify-api.onrender.com/socket.io/?EIO=4&transport=websocket");
+            ws = new WebSocket("wss://messwithmyspotify-api.onrender.com/socket.io/?EIO=4&transport=websocket");
 
             ws.onopen = () => {
                 console.log("WebSocket connected");
