@@ -63,7 +63,7 @@
 
     async function fetchSongInfo() {
       try {
-        const res = await fetch("https://yourserver.com/getsonginformation");
+        const res = await fetch("https://messwithmyspotify-api.onrender.com/getsonginformation");
         const data = await res.json();
 
         document.getElementById("song-name").textContent = data.name;
@@ -90,7 +90,7 @@
       const type = isPlaying ? "pause" : "play";
 
       try {
-        const res = await fetch("https://yourserver.com/toggleplayback", {
+        const res = await fetch("https://messwithmyspotify-api.onrender.com/toggleplayback", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
