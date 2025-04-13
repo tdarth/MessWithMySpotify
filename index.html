@@ -56,19 +56,21 @@
       height: 100%;
       background-color: #1db954;
       width: 0%;
+      transition: width 0.1s linear;
     }
     .tooltip {
       position: absolute;
       background-color: #000;
+      color: #fff;
       padding: 4px 8px;
       border-radius: 6px;
       font-size: 0.75rem;
       white-space: nowrap;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.15s;
-      transform: translateX(-50%);
-      top: -28px;
+      transform: translate(-50%, -8px);
+      transition: opacity 0.15s ease;
+      z-index: 10;
     }
     button {
       margin-top: 1rem;
@@ -108,9 +110,9 @@
     let progressMs = 0;
     let durationMs = 0;
     let lastSyncTime = Date.now();
-    let tooltip = document.getElementById("tooltip");
-    let container = document.getElementById("progress-container");
-    const bar = document.getElementById("progress-bar");
+    const progressBar = document.getElementById("progress-bar");
+    const tooltip = document.getElementById("tooltip");
+    const container = document.getElementById("progress-container");
 
     function formatTime(ms) {
       const minutes = Math.floor(ms / 60000);
@@ -124,7 +126,7 @@
         const data = await res.json();
 
         document.getElementById("song-name").textContent = data.name;
-        document.getElementById("song-artists").textContent = `${data.artists.join(', ')}`;
+        document.getElementById("song-artists").textContent = `By: ${data.artists.join(', ')}`;
         document.getElementById("song-status").textContent = data.is_playing ? "Now Playing" : "Paused";
         document.getElementById("volume").textContent = `Volume: ${data.volume_percent}%`;
         document.getElementById("song-image").src = data.song_image;
@@ -140,20 +142,30 @@
 
     function animateProgress() {
       requestAnimationFrame(animateProgress);
-      if (isPlaying && durationMs > 0) {
-        const elapsed = Date.now() - lastSyncTime;
-        const currentProgress = Math.min(progressMs + elapsed, durationMs);
-        const percent = (currentProgress / durationMs) * 100;
-        bar.style.width = `${percent}%`;
+
+      if (!durationMs || durationMs === 0) return;
+
+      const now = Date.now();
+      const elapsed = now - lastSyncTime;
+
+      let currentProgress = progressMs;
+      if (isPlaying) {
+        currentProgress += elapsed;
       }
+
+      currentProgress = Math.min(currentProgress, durationMs);
+      const percent = (currentProgress / durationMs) * 100;
+      progressBar.style.width = `${percent}%`;
     }
 
     container.addEventListener("mousemove", (e) => {
       const rect = container.getBoundingClientRect();
-      const percent = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+      const x = e.clientX - rect.left;
+      const percent = x / rect.width;
       const hoverTime = Math.floor(percent * durationMs);
+
       tooltip.textContent = `${formatTime(hoverTime)} / ${formatTime(durationMs)}`;
-      tooltip.style.left = `${e.clientX - rect.left}px`;
+      tooltip.style.left = `${x}px`;
       tooltip.style.opacity = 1;
     });
 
