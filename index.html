@@ -80,7 +80,7 @@
             transition: width 0.5s;
         }
 
-        button {
+        .button-group button {
             margin-top: 1rem;
             padding: 0.5rem 1.2rem;
             border: none;
@@ -93,18 +93,17 @@
             transition: all 0.3s ease;
         }
 
-        button:hover {
+        .button-group button:hover {
             background: #1ed760;
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
         }
 
-        button i {
+        .button-group button i {
             display: inline-block;
             width: 1.5em;
             text-align: center;
             font-size: 1.5rem;
         }
-
 
         .progress-tooltip {
             position: absolute;
@@ -118,6 +117,7 @@
             opacity: 0;
             transform: translateX(-50%);
             transition: opacity 0.15s;
+            z-index: 10;
         }
 
         .progress-tooltip::after {
@@ -129,6 +129,7 @@
             border-width: 5px;
             border-style: solid;
             border-color: rgba(0, 0, 0, 0.85) transparent transparent transparent;
+            z-index: 10;
         }
 
         .visualizer {
@@ -153,22 +154,113 @@
         @keyframes flashPlayPause {
             0% {
                 content: '\f04b';
-                /* play icon */
             }
 
             50% {
                 content: '\f04c';
-                /* pause icon */
             }
 
             100% {
                 content: '\f04b';
-                /* play icon */
             }
         }
 
         #toggle-button.playing {
             animation: flashPlayPause 1s infinite;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+
+        .volume-control i {
+            font-size: 1.3rem;
+            color: #fff;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .volume-slider::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, white 0%, white var(--slider-fill, 50%), #444 var(--slider-fill, 50%), #444 100%);
+            border-radius: 3px;
+        }
+
+        .volume-slider::-moz-range-track {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, white 0%, white var(--slider-fill, 50%), #444 var(--slider-fill, 50%), #444 100%);
+            border-radius: 3px;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 0;
+            height: 0;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            z-index: 2;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 0;
+            height: 0;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .volume-control {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+
+        .volume-tooltip {
+            position: absolute;
+            top: -23px;
+            left: 50%;
+            transform: translateX(-50%) translateX(37.3px);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+
+
+        .volume-tooltip::after {
+            content: "";
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.85) transparent transparent transparent;
         }
     </style>
 </head>
@@ -181,20 +273,25 @@
             <h2 id="song-name">Loading...</h2>
             <p id="song-artists"></p>
             <p id="song-status"></p>
-            <p id="volume"></p>
+
+            <div class="volume-control">
+                <i class="fas fa-volume-up"></i>
+                <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="50"
+                    oninput="debouncedVolumeChange(this.value); updateSliderVisual(this)">
+                <div class="volume-tooltip" id="volume-tooltip">50%</div>
+            </div>
+
+
+
+
             <div class="progress-container" id="progress-container">
                 <div class="progress-bar" id="progress-bar"></div>
             </div>
+
             <div class="button-group">
-                <button onclick="navigatePlayer('previous')">
-                    <i class="fas fa-backward"></i>
-                </button>
-                <button onclick="togglePlayback()" id="toggle-button">
-                    <i class="fas fa-play"></i>
-                </button>
-                <button onclick="navigatePlayer('next')">
-                    <i class="fas fa-forward"></i>
-                </button>
+                <button onclick="navigatePlayer('previous')"><i class="fas fa-backward"></i></button>
+                <button onclick="togglePlayback()" id="toggle-button"><i class="fas fa-play"></i></button>
+                <button onclick="navigatePlayer('next')"><i class="fas fa-forward"></i></button>
             </div>
         </div>
 
@@ -221,12 +318,14 @@
                 document.getElementById("song-name").textContent = data.name;
                 document.getElementById("song-artists").textContent = `${data.artists.join(', ')}`;
                 document.getElementById("song-status").textContent = data.is_playing ? "Now Playing" : "Paused";
-                document.getElementById("volume").textContent = `Volume: ${data.volume_percent}%`;
+
+                document.getElementById("volume-slider").value = data.volume_percent;
+                updateSliderBackground(data.volume_percent);
 
                 const songImage = document.getElementById("song-image");
                 songImage.src = data.song_image;
-                songImage.alt = `Cover of ${data.name}`;
-                songImage.title = `Cover of ${data.name}`;
+                songImage.alt = `${data.name}`;
+                songImage.title = `${data.name}`;
 
                 isPlaying = data.is_playing;
                 progressMs = data.progress_ms;
@@ -337,9 +436,7 @@
                 });
 
                 if (res.ok) {
-                    setTimeout(() => {
-                        fetchSongInfo();
-                    }, 300);
+                    setTimeout(() => fetchSongInfo(), 300);
                 } else {
                     const err = await res.json();
                     console.error("Error during Navigation:", err);
@@ -354,10 +451,8 @@
         setInterval(() => {
             if (isPlaying !== lastPlayedState) {
                 lastPlayedState = isPlaying;
-
                 const toggleButton = document.getElementById("toggle-button");
                 const icon = toggleButton.querySelector('i');
-
                 if (isPlaying) {
                     icon.classList.remove("fa-play");
                     icon.classList.add("fa-pause");
@@ -368,6 +463,68 @@
             }
         }, 100);
 
+        let debounceTimeout = null;
+        function debouncedVolumeChange(val) {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                sendVolume(val);
+            }, 200);
+        }
+
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeTooltip = document.getElementById('volume-tooltip');
+
+        volumeSlider.addEventListener('mousemove', (e) => {
+            const rect = volumeSlider.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const percent = Math.round((x / rect.width) * 100);
+            const displayValue = Math.min(Math.max(percent, 0), 100);
+
+            volumeTooltip.style.left = `${x}px`;
+            volumeTooltip.style.opacity = 1;
+            volumeTooltip.textContent = `${displayValue}%`;
+        });
+
+        volumeSlider.addEventListener('mouseleave', () => {
+            volumeTooltip.style.opacity = 0;
+        });
+
+
+        function updateSliderBackground(value) {
+            const percent = (value / volumeSlider.max) * 100;
+            volumeSlider.style.setProperty('--slider-fill', `${percent}%`);
+        }
+
+        updateSliderBackground(volumeSlider.value);
+
+        volumeSlider.addEventListener('input', e => {
+            updateSliderBackground(e.target.value);
+            debouncedVolumeChange(e.target.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const slider = document.getElementById('volume-slider');
+            updateSliderVisual(slider);
+        });
+
+        async function sendVolume(volume) {
+            try {
+                const res = await fetch("https://messwithmyspotify-api.onrender.com/setvolume", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ volume: parseInt(volume) })
+                });
+
+                if (res.ok) {
+                    setTimeout(() => fetchSongInfo(), 300);
+                } else {
+                    const err = await res.json();
+                    console.error("Error during setting Volume:", err);
+                }
+            } catch (err) {
+                console.error("Error setting Volume:", err);
+            }
+        }
 
         fetchSongInfo();
         setInterval(fetchSongInfo, syncInterval);
