@@ -3,70 +3,115 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mess With My Spotify</title>
+  <title>Spotify Song Info</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 100px;
+      background-color: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
     }
-
+    .card {
+      background-color: #1e1e1e;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      width: 300px;
+    }
+    img {
+      border-radius: 12px;
+      max-width: 100%;
+    }
+    h2 {
+      margin: 1rem 0 0.5rem;
+    }
+    p {
+      margin: 0.5rem 0;
+    }
     button {
-      padding: 15px 30px;
-      font-size: 18px;
-      margin: 10px;
+      margin-top: 1.5rem;
+      padding: 0.6rem 1.2rem;
       border: none;
+      background-color: #1db954;
+      color: white;
+      font-size: 1rem;
       border-radius: 8px;
       cursor: pointer;
-      transition: background-color 0.3s ease;
     }
-
-    .play {
-      background-color: #1DB954;
-      color: white;
-    }
-
-    .play:hover {
-      background-color: #17a44a;
-    }
-
-    .pause {
-      background-color: #e22134;
-      color: white;
-    }
-
-    .pause:hover {
-      background-color: #be1d2c;
+    button:hover {
+      background-color: #1ed760;
     }
   </style>
 </head>
 <body>
-  <h1>Mess With My Spotify</h1>
-  <button class="play" onclick="sendCommand('play')">Play</button>
-  <button class="pause" onclick="sendCommand('pause')">Pause</button>
+  <div class="card" id="song-card">
+    <img id="song-image" src="" alt="Song Cover" />
+    <h2 id="song-name">Loading...</h2>
+    <p id="song-artists"></p>
+    <p id="song-status"></p>
+    <p id="song-progress"></p>
+    <p id="volume"></p>
+    <button onclick="togglePlayback()" id="toggle-button">Toggle Playback</button>
+  </div>
 
   <script>
-    function sendCommand(type) {
-      fetch('https://messwithmyspotify-api.onrender.com/toggleplayback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'type': type
-        }
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Request failed with status ' + response.status);
-        }
-        return response.text();
-      })
-      .then(data => {
-        console.log('Response:', data);
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
+    let isPlaying = false;
+
+    async function fetchSongInfo() {
+      try {
+        const res = await fetch("https://yourserver.com/getsonginformation");
+        const data = await res.json();
+
+        document.getElementById("song-name").textContent = data.name;
+        document.getElementById("song-artists").textContent = `By: ${data.artists.join(', ')}`;
+        document.getElementById("song-status").textContent = data.is_playing ? "Now Playing" : "Paused";
+        document.getElementById("song-progress").textContent =
+          `Progress: ${formatTime(data.progress_ms)} / ${formatTime(data.duration_ms)}`;
+        document.getElementById("volume").textContent = `Volume: ${data.volume_percent}%`;
+        document.getElementById("song-image").src = data.song_image;
+
+        isPlaying = data.is_playing;
+      } catch (err) {
+        console.error("Failed to fetch song info:", err);
+      }
     }
+
+    function formatTime(ms) {
+      const minutes = Math.floor(ms / 60000);
+      const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    }
+
+    async function togglePlayback() {
+      const type = isPlaying ? "pause" : "play";
+
+      try {
+        const res = await fetch("https://yourserver.com/toggleplayback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            type
+          }
+        });
+
+        if (res.ok) {
+          isPlaying = !isPlaying;
+          fetchSongInfo();
+        } else {
+          const err = await res.json();
+          console.error("Error toggling playback:", err);
+        }
+      } catch (err) {
+        console.error("Playback toggle error:", err);
+      }
+    }
+
+    fetchSongInfo();
+    setInterval(fetchSongInfo, 10000);
   </script>
 </body>
 </html>
