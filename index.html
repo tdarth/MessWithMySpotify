@@ -511,8 +511,7 @@
             try {
                 const res = await fetch("https://messwithmyspotify-api.onrender.com/setvolume", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ volume: parseInt(volume) })
+                    headers: { "Content-Type": "application/json", volume },
                 });
 
                 if (res.ok) {
