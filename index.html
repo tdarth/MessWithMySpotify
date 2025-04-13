@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mess With My Spotify</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 100px;
+    }
+
+    button {
+      padding: 15px 30px;
+      font-size: 18px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .play {
+      background-color: #1DB954;
+      color: white;
+    }
+
+    .play:hover {
+      background-color: #17a44a;
+    }
+
+    .pause {
+      background-color: #e22134;
+      color: white;
+    }
+
+    .pause:hover {
+      background-color: #be1d2c;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mess With My Spotify</h1>
+  <button class="play" onclick="sendCommand('play')">Play</button>
+  <button class="pause" onclick="sendCommand('pause')">Pause</button>
+
+  <script>
+    function sendCommand(type) {
+      fetch('https://messwithmyspotify-api.onrender.com/toggleplayback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'type': type
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Request failed with status ' + response.status);
+        }
+        return response.text();
+      })
+      .then(data => {
+        console.log('Response:', data);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+    }
+  </script>
+</body>
+</html>
